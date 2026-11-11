@@ -92,7 +92,7 @@ class Dashboard:
     def table(self, dataset: str, columns: list[str], title: str, width: int = 6, height: int = 6,
               x: int = 0, new_row: bool = True):
         fields = [(c, f"`{c}`") for c in columns]
-        spec = {"version": 1, "widgetType": "table", "frame": {"showTitle": True, "title": title},
+        spec = {"version": 2, "widgetType": "table", "frame": {"showTitle": True, "title": title},
                 "encodings": {"columns": [{"fieldName": c, "displayName": c} for c in columns]}}
         self._add({"name": _id(), "queries": self._query(dataset, fields, disaggregated=True), "spec": spec},
                   width, height, x, new_row)
