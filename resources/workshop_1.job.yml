@@ -1,0 +1,36 @@
+# End-to-end test runs of the participant notebooks (participants normally run them interactively).
+resources:
+  jobs:
+    impulse_workshop_1:
+      name: impulse_workshop_1_intro
+      description: Runs every workshop-1 notebook top to bottom against the shared silver layer.
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: serverless
+          spec:
+            environment_version: "4"
+      parameters:
+        - name: user_schema
+          default: ${var.user_catalog}.${var.user_schema_name}
+        - name: impulse_repo_path
+          default: ${var.impulse_repo_path}
+        - name: impulse_install_mode
+          default: ${var.impulse_install_mode}
+        - name: warehouse_id
+          default: ${var.warehouse_id}
+      tasks:
+        - task_key: intro_to_impulse_tsal
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../workshop_1_intro/01_intro_to_impulse_tsal.py
+        - task_key: genie_code_skills
+          depends_on: [{task_key: intro_to_impulse_tsal}]
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../workshop_1_intro/02_genie_code_with_impulse_skills.py
+        - task_key: report_and_dashboard
+          depends_on: [{task_key: genie_code_skills}]
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../workshop_1_intro/03_report_and_dashboard.py
+

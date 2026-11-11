@@ -1,0 +1,20 @@
+# Workshop 2: the bronze -> Impulse silver engineering of notebook 1, as a Lakeflow Spark
+# Declarative Pipeline, orchestrated by a job (pipeline refresh -> Impulse smoke test).
+resources:
+  pipelines:
+    impulse_w2_silver_pipeline:
+      name: impulse_w2_silver_pipeline
+      catalog: ${var.user_catalog}
+      schema: ${var.user_schema_name}
+      serverless: true
+      channel: CURRENT
+      photon: true
+      root_path: ../workshop_2_deep_dive/declarative_pipeline
+      libraries:
+        - file:
+            path: ../workshop_2_deep_dive/declarative_pipeline/transformations/impulse_silver_pipeline.py
+      configuration:
+        impulse_workshop.repo_root: ${workspace.file_path}
+        impulse_workshop.bronze_schema: ${var.catalog}.${var.shared_schema}
+        impulse_workshop.table_prefix: impulse_w2_sdp
+        impulse_workshop.trips: "0,19,66,79,94,95"

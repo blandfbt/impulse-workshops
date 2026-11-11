@@ -1,0 +1,28 @@
+# Orchestrates the workshop-2 silver pipeline (resources/w2_silver.pipeline.yml) + an Impulse smoke test.
+resources:
+  jobs:
+    impulse_w2_silver_pipeline_job:
+      name: impulse_w2_silver_pipeline_job
+      description: Refreshes the workshop-2 silver pipeline, then smoke-tests the result with an Impulse query.
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: serverless
+          spec:
+            environment_version: "4"
+      parameters:
+        - name: user_schema
+          default: ${var.user_catalog}.${var.user_schema_name}
+        - name: impulse_repo_path
+          default: ${var.impulse_repo_path}
+        - name: impulse_install_mode
+          default: ${var.impulse_install_mode}
+      tasks:
+        - task_key: refresh_silver_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.impulse_w2_silver_pipeline.id}
+            full_refresh: true
+        - task_key: impulse_smoke_test
+          depends_on: [{task_key: refresh_silver_pipeline}]
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../workshop_2_deep_dive/declarative_pipeline/validate_pipeline_silver.py

@@ -1,0 +1,54 @@
+# Databricks Asset Bundle for the Impulse workshops.
+#
+#   databricks bundle validate -p <profile>
+#   databricks bundle deploy   -p <profile> --var user_schema_name=<your_schema>
+#   databricks bundle run impulse_instructor_setup -p <profile>          # instructor, once
+#   databricks bundle run impulse_workshop_1       -p <profile>          # end-to-end test of workshop 1
+#   databricks bundle run impulse_workshop_2       -p <profile>          # end-to-end test of workshop 2
+#   databricks bundle run impulse_w2_silver_pipeline_job -p <profile>    # workshop 2 declarative pipeline
+#
+# Participants do NOT need the bundle: they can clone the repo into a Git folder and run the
+# notebooks interactively (see README.md). The bundle is for instructors and automated testing.
+bundle:
+  name: impulse-workshops
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Catalog holding the shared schema (bronze + silver + raw volume).
+    default: dbx_workshop_dev
+  shared_schema:
+    description: Shared schema (bronze + silver + raw volume), managed by the instructor.
+    default: shared
+  user_catalog:
+    description: Catalog of the personal schema the workshop notebooks write to.
+    default: dbx_workshop_dev
+  user_schema_name:
+    description: Personal schema (inside user_catalog) the workshop notebooks write gold tables to.
+    default: ""
+  impulse_repo_path:
+    description: The single, shared Databricks Git folder clone of databrickslabs/impulse.
+    default: /Workspace/Shared/impulse
+  impulse_install_mode:
+    description: How notebooks get Impulse - "wheel" (from the impulse_libs volume) or "repo" (shared Git folder).
+    default: wheel
+  warehouse_id:
+    description: SQL warehouse for the AI/BI dashboards (empty = auto-pick).
+    default: ""
+  max_trips:
+    description: Trips to download from Hugging Face (1-100).
+    default: "100"
+
+targets:
+  # Personal development / testing copy (job names are prefixed with "[dev <you>]").
+  dev:
+    default: true
+    mode: development
+
+  # A shared, instructor-owned copy of the notebooks and jobs.
+  shared:
+    mode: production
+    workspace:
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}

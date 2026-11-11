@@ -1,0 +1,48 @@
+resources:
+  jobs:
+    impulse_instructor_setup:
+      name: impulse_instructor_setup
+      description: >
+        Instructor setup for the Impulse workshops: download the Renumics fleet telemetry dataset into a
+        UC volume, package Impulse as a wheel in a UC volume, build the bronze tables, build the Impulse silver model, validate and (optionally) grant access.
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: serverless
+          spec:
+            environment_version: "4"
+      parameters:
+        - name: max_trips
+          default: ${var.max_trips}
+        - name: impulse_repo_path
+          default: ${var.impulse_repo_path}
+        - name: impulse_install_mode
+          default: ${var.impulse_install_mode}
+        - name: apply_grants
+          default: "false"
+        - name: grant_to
+          default: account users
+      tasks:
+        - task_key: build_impulse_wheel
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../instructor_setup/01b_build_impulse_wheel.py
+        - task_key: download_dataset
+          environment_key: serverless
+          timeout_seconds: 14400
+          notebook_task:
+            notebook_path: ../instructor_setup/01_download_dataset.py
+        - task_key: create_bronze_tables
+          depends_on: [{task_key: download_dataset}]
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../instructor_setup/02_create_bronze_tables.py
+        - task_key: create_silver_tables
+          depends_on: [{task_key: create_bronze_tables}]
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../instructor_setup/03_create_silver_tables.py
+        - task_key: validate_and_grant
+          depends_on: [{task_key: create_silver_tables}, {task_key: build_impulse_wheel}]
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../instructor_setup/04_validate_and_grant.py

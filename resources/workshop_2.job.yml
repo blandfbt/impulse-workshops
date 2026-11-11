@@ -1,0 +1,35 @@
+# End-to-end test run of the participant notebooks (participants normally run them interactively).
+resources:
+  jobs:
+    impulse_workshop_2:
+      name: impulse_workshop_2_deep_dive
+      description: Runs every workshop-2 notebook top to bottom (bronze -> silver -> TSAL deep dive -> report + dashboard).
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: serverless
+          spec:
+            environment_version: "4"
+      parameters:
+        - name: user_schema
+          default: ${var.user_catalog}.${var.user_schema_name}
+        - name: impulse_repo_path
+          default: ${var.impulse_repo_path}
+        - name: impulse_install_mode
+          default: ${var.impulse_install_mode}
+        - name: warehouse_id
+          default: ${var.warehouse_id}
+      tasks:
+        - task_key: bronze_to_silver
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../workshop_2_deep_dive/01_bronze_to_silver_data_engineering.py
+        - task_key: tsal_deep_dive
+          depends_on: [{task_key: bronze_to_silver}]
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../workshop_2_deep_dive/02a_tsal_deep_dive.py
+        - task_key: report_sql_dashboard
+          depends_on: [{task_key: tsal_deep_dive}]
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../workshop_2_deep_dive/02b_report_sql_dashboard.py
