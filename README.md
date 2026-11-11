@@ -97,7 +97,8 @@ under `/Workspace/Shared/.bundle/`). Variables: `catalog`, `shared_schema`, `use
 
 ## License & attribution
 
-Dataset: *Synthetic Vehicle Fleet Telemetry* by
+Workshop code and notebooks: [MIT](LICENSE). The MIT license covers this repository only — not the
+dataset or Impulse. Dataset: *Synthetic Vehicle Fleet Telemetry* by
 [Renumics](https://renumics.com/), CC BY-SA 4.0, based on joint work of Volkswagen AG Group Innovation,
 IPG Automotive and Renumics — see [NOTICE.md](NOTICE.md). Impulse is a Databricks Labs project, provided
 as-is without SLAs. This repository is not an official Databricks product.
