@@ -126,24 +126,67 @@ print(f"duration-weighted mean {s.mean():.2f} m/s vs plain mean of values {s.val
 
 # MAGIC %md
 # MAGIC ### 2b · `Intervals` — *when* something is true
-# MAGIC **Regenerative braking**: the e-motor's electrical power is negative (it works as a generator) while the
-# MAGIC car is moving. Interval methods then clean the result — all durations are in **µs**:
 # MAGIC
-# MAGIC * `.filter(d)` drop windows shorter than `d`  · `.merge_intervals(gap)` merge windows closer than `gap`
-# MAGIC * `.expand(w)` / `.shrink(w)` grow / shrink both sides · `.debounce(d)` suppress chatter
+# MAGIC **Goal: find the moments the car recovers energy by regenerative braking.** In regen the e-motor works as a
+# MAGIC generator: its electrical power `PT.Motor.PwrElec` turns **negative** while the car is still moving.
+# MAGIC A comparison such as `(motor_power < 0) & (speed > 1)` does not return values; it returns **`Intervals`**,
+# MAGIC a list of `[start, end)` windows during which the condition holds.
+# MAGIC
+# MAGIC **The catch: the raw condition fires constantly.** Motor power hovers around zero whenever the driver lifts
+# MAGIC off, coasts or makes small pedal corrections, so it dips below 0 for a split second, again and again. On
+# MAGIC trip 7 the raw condition gives **273 windows with a median length of 0.03 s**, and **73 % of them are
+# MAGIC shorter than 1 s**. These are noise, not braking. Counted as regen events, they would swamp the
+# MAGIC fleet statistics with chatter.
+# MAGIC
+# MAGIC So we **clean the windows** before using them, in two steps:
+# MAGIC
+# MAGIC ```
+# MAGIC raw        ▌▌ ▌▌▌ ▌   ▌        ▌▌▌▌▌ ▌▌▌▌▌▌ ▌▌▌▌▌▌▌▌      ▌     273 windows, mostly < 1 s
+# MAGIC merge  2 s ████████   ▌        ████████████████████      ▌      88 windows: neighbours < 2 s apart joined
+# MAGIC filter 5 s ████████            ████████████████████             40 events: only those ≥ 5 s remain
+# MAGIC ```
+# MAGIC
+# MAGIC 1. **`.merge_intervals(2e6)`**: one real regen phase often flickers (power briefly crosses 0 and comes
+# MAGIC    back). Windows separated by gaps **shorter than 2 s** are joined, so one deceleration counts as
+# MAGIC    **one event** rather than many fragments. Trip 7: 273 → **88** windows.
+# MAGIC 2. **`.filter(5e6)`**: after merging, windows **shorter than 5 s** are dropped. What is left are the
+# MAGIC    **significant** regen events, sustained decelerations such as a descent on the mountain pass or braking
+# MAGIC    for a hairpin. Trip 7: 88 → **40 events, median 16 s**.
+# MAGIC
+# MAGIC Removing those 233 tiny windows loses almost nothing. The 40 significant events still cover **885 s of the
+# MAGIC 928 s** of raw regen time (95 %). The short windows were numerous but carried very little time.
+# MAGIC
+# MAGIC Order matters: merge **first**, so the flickering edges of a long regen phase are kept as part of it. Filter
+# MAGIC first and those fragments are thrown away before they can be joined (on trip 7: same 40 events, but 23 s
+# MAGIC less regen time).
+# MAGIC
+# MAGIC The thresholds (2 s, 5 s) are **analysis choices**, not properties of the data; tune them to the question.
+# MAGIC The printout below shows the before/after counts and median durations.
+# MAGIC
+# MAGIC Other interval-cleaning methods, all with durations in **µs** (`1e6` = 1 s):
+# MAGIC
+# MAGIC * `.filter(d)` drops windows shorter than `d` · `.merge_intervals(gap)` merges windows closer than `gap`
+# MAGIC * `.expand(w)` / `.shrink(w)` grow / shrink both sides · `.debounce(d)` suppresses chatter
 
 # COMMAND ----------
 
 motor_power = db.query.channel(channel_name="PT.Motor.PwrElec")         # [W], negative = generating
+
+# Raw condition -> Intervals: every moment the motor generates while the car moves (> 1 m/s, so a
+# standing car with tiny sensor noise doesn't count). Trip 7: 273 windows, median 0.03 s.
 regen_raw = (motor_power < 0) & (speed > 1)
-regen = regen_raw.merge_intervals(2e6).filter(5e6)                       # bridge < 2 s gaps, keep > 5 s
+
+# Significant regen events only:
+#   1. merge_intervals(2e6): join windows separated by < 2 s -> one deceleration = one event
+#   2. filter(5e6)         : then drop events shorter than 5 s -> only sustained energy recovery remains
+regen = regen_raw.merge_intervals(2e6).filter(5e6)
 
 r = solve_trip(TRIP, speed=speed, motor_power=motor_power, regen_raw=regen_raw, regen=regen)
 t0 = r.speed.tstarts[0]
 raw_w, clean_w = intervals_to_pandas(r.regen_raw, t0), intervals_to_pandas(r.regen, t0)
-print(f"raw regen windows: {len(raw_w):4d}  (median {raw_w.duration_s.median():.2f} s)")
-print(f"cleaned windows  : {len(clean_w):4d}  (median {clean_w.duration_s.median():.1f} s)")
-clean_w.sort_values("duration_s", ascending=False).head()
+print(f"raw regen windows        : {len(raw_w):4d}  (median {raw_w.duration_s.median():.2f} s)")
+print(f"significant regen events : {len(clean_w):4d}  (median {clean_w.duration_s.median():.1f} s)")
+clean_w.sort_values("duration_s", ascending=False).head()   # the longest significant events
 
 # COMMAND ----------
 
@@ -192,8 +235,11 @@ pts.describe().round(1)
 # MAGIC
 # MAGIC ### 3a · Alignment is automatic
 # MAGIC `PT.Motor.VoltBatt` and `PT.BattHV.Current` come from different sensors with **different timestamps**.
-# MAGIC `voltage * current` first **synchronizes** them onto shared validity intervals (a new interval wherever
-# MAGIC *either* input changes), then multiplies. The result covers only their overlap.
+# MAGIC Both log at roughly 100 Hz (every ~10–11 ms), but on their own clocks, so their samples almost never
+# MAGIC land at the same instant. In SQL you'd now have to write an as-of join; in TSAL you just write
+# MAGIC `voltage * current`. Impulse first **synchronizes** them onto shared validity intervals (a new interval
+# MAGIC wherever *either* input changes, each input's value held until its next sample), then multiplies.
+# MAGIC The result covers only their overlap; nothing is interpolated.
 
 # COMMAND ----------
 
@@ -203,9 +249,76 @@ battery_power_kw = voltage * current / 1000                       # derived phys
 
 r = solve_trip(TRIP, voltage=voltage, current=current, battery_power_kw=battery_power_kw,
                motor_power_kw=motor_power / 1000)
-print(f"voltage: {len(r.voltage):,} intervals | current: {len(r.current):,} | product: {len(r.battery_power_kw):,}")
-fig = plot_signals({"battery P=U·I [kW]": r.battery_power_kw, "motor power [kW]": r.motor_power_kw},
+v_t = np.asarray(r.voltage.tstarts, dtype=float)       # interval start times [µs] of each signal
+c_t = np.asarray(r.current.tstarts, dtype=float)
+p_t = np.asarray(r.battery_power_kw.tstarts, dtype=float)
+shared = np.intersect1d(v_t, c_t).size
+print(f"voltage: {len(v_t):,} intervals | current: {len(c_t):,} | product: {len(p_t):,}")
+print(f"start times shared by voltage and current: {shared:,}  ->  product = union of both time bases")
+
+fig = plot_signals({"voltage [V]": r.voltage, "current [A]": r.current,
+                    "battery P=U·I [kW]": r.battery_power_kw, "motor power [kW]": r.motor_power_kw},
                    title="Battery-side vs motor-side power (two independent measurements agree)")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### Zoom in: two clocks, one result
+# MAGIC Over a whole trip the curves look perfectly aligned. Zoom in to **0.1 s** and the separate time bases
+# MAGIC appear. The cell below picks the moment where the voltage swings the most, and shows:
+# MAGIC
+# MAGIC * **Plot:** each dot is the start of a new interval. Voltage (blue) and current (orange) tick at
+# MAGIC   *different* instants. The product (bottom) gets a new interval at **every** tick of **either** input;
+# MAGIC   the dotted lines show which input caused it.
+# MAGIC * **Table:** the product's intervals in that window: which input changed, the voltage and current value
+# MAGIC   **held** at that moment (zero-order hold: valid until the next sample), and the product Impulse computed.
+# MAGIC
+# MAGIC That is why the product has about as many intervals as voltage and current **combined**. Voltage has
+# MAGIC fewer intervals than current because of RLE: while the voltage holds steady, it stays a single interval.
+
+# COMMAND ----------
+
+import matplotlib.pyplot as plt
+
+# Pick a 0.1 s window where both signals visibly move: among the stretches where the voltage changes 8 times
+# within 0.1 s, take the one with the biggest voltage swing (a hard acceleration or regen pulls the pack voltage).
+v_v = np.asarray(r.voltage.values, dtype=float)
+busy = np.where(v_t[8:] - v_t[:-8] < 0.1 * US)[0]
+best = busy[np.argmax(np.abs(v_v[busy + 8] - v_v[busy]))]
+lo = v_t[best] - 0.01 * US
+hi = lo + 0.1 * US
+
+fig, axes = plt.subplots(3, 1, figsize=(13, 6), sharex=True)
+for ax, (label, series, color) in zip(axes, [("voltage [V]", r.voltage, "C0"), ("current [A]", r.current, "C1"),
+                                             ("U·I [kW]", r.battery_power_kw, "C2")]):
+    t = np.asarray(series.tstarts, dtype=float)
+    m = (t >= lo - 0.02 * US) & (t < hi)                                 # include the value held at `lo`
+    x = (t[m] - lo) / 1e3                                                # ms since window start
+    ax.step(x, np.asarray(series.values)[m], where="post", color=color, lw=1)
+    ax.plot(x, np.asarray(series.values)[m], "o", color=color, ms=4)
+    ax.set_ylabel(label, rotation=0, ha="right", va="center", fontsize=9)
+    ax.grid(alpha=0.3)
+for tv in v_t[(v_t >= lo) & (v_t < hi)]:                                 # which input caused each product step
+    axes[2].axvline((tv - lo) / 1e3, color="C0", ls=":", lw=0.8)
+for tc in c_t[(c_t >= lo) & (c_t < hi)]:
+    axes[2].axvline((tc - lo) / 1e3, color="C1", ls=":", lw=0.8)
+axes[-1].set_xlim(0, 100)
+axes[-1].set_xlabel(f"ms after t = {(lo - t0) / US:.2f} s")
+fig.suptitle("100 ms zoom: voltage and current tick on their own clocks; the product steps on both")
+fig.tight_layout()
+
+# Timeline of the product's intervals in the window, with the input values held at each start.
+in_win = (p_t >= lo) & (p_t < hi)
+t = p_t[in_win]
+iv = np.searchsorted(v_t, t, side="right") - 1                          # last voltage sample at or before t
+ic = np.searchsorted(c_t, t, side="right") - 1                          # last current sample at or before t
+pd.DataFrame({
+    "t [ms]": ((t - lo) / 1e3).round(2),
+    "changed": np.where(np.isin(t, v_t), np.where(np.isin(t, c_t), "both", "voltage"), "current"),
+    "voltage [V] (held)": np.asarray(r.voltage.values)[iv].round(3),
+    "current [A] (held)": np.asarray(r.current.values)[ic].round(2),
+    "U·I [kW] (Impulse)": np.asarray(r.battery_power_kw.values)[in_win].round(3),
+})
 
 # COMMAND ----------
 
@@ -274,12 +387,47 @@ display(spark.table(SILVER["unit_conversion"]).orderBy("group_id", F.desc("is_ba
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Ask for the **logical** name; Impulse resolves the physical channel per trip (lowest `priority` that
-# MAGIC exists), reads its unit from `channel_metrics.unit` and multiplies by `factor(source) / factor(target)`.
+# MAGIC #### How an alias is resolved
 # MAGIC
-# MAGIC `drive_unit_speed` shows the **priority fallback**: priority 1 is the e-motor (`PT.Motor.rotv`), priority
-# MAGIC 2 the engine (`Vhcl.Engine.rotv`). The e-motor channel only exists in the 63 electrified trips, so
-# MAGIC combustion cars resolve to their engine — and both arrive in **rpm**. Compare on the lap-time trips:
+# MAGIC With `channel_with_alias(channel_alias="drive_unit_speed")` you ask for a **logical** name, not a physical
+# MAGIC channel. For **each trip**, Impulse then does three things:
+# MAGIC
+# MAGIC 1. **Find the candidates.** It takes every `channel_mapping` row for the alias and joins it to that trip's
+# MAGIC    `channel_metrics` on `source_channel = channel_name` (and `data_key`). Only physical channels that
+# MAGIC    **exist in this trip** survive the join.
+# MAGIC 2. **Pick one.** Among the survivors it keeps the **lowest `priority`**. So priority 1 is the preferred
+# MAGIC    source, and priority 2 is the fallback used only when priority 1 is missing.
+# MAGIC 3. **Convert the unit.** It reads the physical channel's unit from `channel_metrics.unit` (falling back
+# MAGIC    to `channel_mapping.source_unit`), looks up both units in `unit_conversion` and multiplies every value
+# MAGIC    by `factor(source) / factor(target)`. The factors convert each unit to its family's base unit:
+# MAGIC
+# MAGIC | alias | source → target | factors (to base unit) | multiplier |
+# MAGIC |---|---|---|---|
+# MAGIC | `drive_unit_speed` | rad/s → rpm | rad/s = 1, rpm = 2π/60 = 0.1047 | 1 / 0.1047 = **9.549** |
+# MAGIC | `vehicle_speed` | m/s → km/h | m/s = 1, km/h = 1/3.6 | **3.6** |
+# MAGIC | `battery_energy` | J → kWh | J = 1, kWh = 3.6·10⁶ | **1 / 3.6·10⁶** |
+# MAGIC
+# MAGIC The analyst never needs to know which signal a vehicle has or which unit it logs. The query reads the
+# MAGIC same on every trip.
+# MAGIC
+# MAGIC #### The priority fallback in action
+# MAGIC
+# MAGIC `drive_unit_speed` means "the speed of whatever drives the car". It has two mapping rows:
+# MAGIC
+# MAGIC * priority **1** → `PT.Motor.rotv`, the e-motor;
+# MAGIC * priority **2** → `Vhcl.Engine.rotv`, the combustion engine.
+# MAGIC
+# MAGIC The e-motor channel only exists in the **63 electrified trips** (EVs and hybrids). Those trips resolve to
+# MAGIC the motor. Combustion (`generic`) cars have no motor channel, so step 2 falls back to their engine. Both
+# MAGIC arrive in **rpm**, so a single column compares drive-unit speed across the whole fleet.
+# MAGIC
+# MAGIC (A hybrid has *both* channels; priority 1 makes it resolve to the e-motor. If you'd rather have the engine
+# MAGIC for hybrids, change the priorities in the mapping table, not the analysis.)
+# MAGIC
+# MAGIC The next cell runs on the **lap-time trips**, a mix of EVs, hybrids and combustion cars. Next to the aliases
+# MAGIC it selects the physical channels **directly** (`channel(channel_name=...)`, no conversion), so you can check
+# MAGIC the arithmetic row by row. The `v_alias < 360` filter is the usual speed-spike rule: 100 m/s = 360 km/h,
+# MAGIC because the alias already arrives in km/h.
 
 # COMMAND ----------
 

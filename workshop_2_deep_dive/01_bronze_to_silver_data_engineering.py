@@ -25,6 +25,27 @@
 # MAGIC                                                 unit_conversion    unit families + factors      optional
 # MAGIC ```
 # MAGIC
+# MAGIC ### Which tables does the `DefaultSolver` need?
+# MAGIC
+# MAGIC Only **three** tables are required. Everything else is an add-on that the `DefaultSolver` uses **only
+# MAGIC when you configure it** in `MeasurementDBConfig`. Leave an optional table out and the queries that don't
+# MAGIC need it still work; queries that do need it fail with a clear error. So you can start small and add
+# MAGIC tables when analysts ask for the capability.
+# MAGIC
+# MAGIC | Table | DefaultSolver | What it gives you | Without it |
+# MAGIC |---|---|---|---|
+# MAGIC | `channels` | ✅ **required** | the sample data itself, as `[tstart, tend) → value` intervals (or raw samples) | nothing to query |
+# MAGIC | `channel_metrics` | ✅ **required** | channel selection *before* reading samples, plus cheap per-channel statistics | Impulse can't find channels |
+# MAGIC | `container_metrics` | ✅ **required** | the list of recordings and their `start_ts` / `stop_ts`; also the gold `measurement_dimensions` | no containers, no `ContainerEvent` / `TimeWindowEvent` |
+# MAGIC | `channel_tags` | ➕ optional | select channels by **any** metadata (`category="PT"`, `physical_quantity=...`), add metadata without schema changes | select only by columns on `channel_metrics` |
+# MAGIC | `container_tags` | ➕ optional | `havingTag(...)` container filters (vehicle, scenario, driver style, …) | no tag-based container filters |
+# MAGIC | `poi_channels` | ➕ optional | `poi_channel(...)` → **PointsInTimeSeries** (events, alerts, fault codes) | no event channels |
+# MAGIC | `channel_mapping` | ➕ optional | `channel_with_alias(...)`: stable logical names with per-trip **fallback** | analysts must know every physical name |
+# MAGIC | `unit_conversion` | ➕ optional | automatic unit conversion of aliased channels during `solve()` (needs `channel_mapping`) | convert by hand in TSAL (`* 3.6`) |
+# MAGIC
+# MAGIC `dq_findings` (step 2) is **not** an Impulse table. It is our own data-quality log for people and
+# MAGIC dashboards; the solver never reads it.
+# MAGIC
 # MAGIC | Step | Builds | Key idea |
 # MAGIC |---|---|---|
 # MAGIC | 0 | — | explore bronze and spot its traps |
@@ -195,6 +216,11 @@ display(samples.limit(5))
 # MAGIC %md
 # MAGIC ## Step 2 · Data-quality findings — flag, don't drop
 # MAGIC
+# MAGIC > **Not an Impulse table.** `dq_findings` is our own audit table for people and dashboards; the solver
+# MAGIC > never reads it. (Impulse has its own hook for this: an optional boolean `is_plausible` column on
+# MAGIC > `channels`, which `DefaultSolver(spark, drop_implausible_data=True)` filters on. We don't use it here,
+# MAGIC > because we want every analysis to show its own handling in TSAL.)
+# MAGIC
 # MAGIC We declare **plausible ranges** for signals with known failure modes, measure every (trip, signal) and
 # MAGIC record each one with implausible samples — with the evidence and the recommended handling — in a
 # MAGIC `dq_findings` table. Nothing is removed: analysts see the findings and apply the handling in TSAL. A
@@ -228,6 +254,9 @@ clean = samples   # flagged, not dropped: every measured value goes on to silver
 
 # MAGIC %md
 # MAGIC ## Step 3 · `channels` — run-length encoding (RLE)
+# MAGIC
+# MAGIC > ✅ **Required by the `DefaultSolver`.** This is the sample data: every `SampleSeries`, `Intervals` and
+# MAGIC > `PointsInTime` result is computed from it.
 # MAGIC
 # MAGIC Impulse treats a sample as **a value that holds for a duration** (zero-order hold): it is valid from its
 # MAGIC timestamp until the next sample arrives. So the natural storage format is an interval
@@ -333,6 +362,11 @@ display(q_runs)
 # MAGIC %md
 # MAGIC ## Step 4 · `channel_metrics` — the channel catalogue
 # MAGIC
+# MAGIC > ✅ **Required by the `DefaultSolver`.** The solver reads it first to decide *which* channels to load.
+# MAGIC > Inside the table, `container_id` and `channel_id` are the required columns. `channel_name` + `data_key`
+# MAGIC > become required as soon as you use aliases (step 8), and `unit` is optional; when present it is the
+# MAGIC > trusted source unit for unit conversion. The statistic columns are entirely yours.
+# MAGIC
 # MAGIC One row per (trip, signal). It plays two roles:
 # MAGIC
 # MAGIC 1. **Selection.** When you write `channel(channel_name="Vhcl.v")`, Impulse resolves *which*
@@ -381,6 +415,12 @@ display(channel_metrics.where(F.col("container_id") == TRIPS[0]).orderBy("channe
 # MAGIC %md
 # MAGIC ## Step 5 · `channel_tags` — EAV metadata
 # MAGIC
+# MAGIC > ➕ **Optional.** Without it, `channel(...)` can only match columns that exist on `channel_metrics`
+# MAGIC > (here `channel_name`, `unit`, `data_key`). **How it helps:** any metadata becomes a selector, so you
+# MAGIC > can write `channel(category="PT", physical_quantity="temperature")`. New metadata is just new rows,
+# MAGIC > with no schema change and no re-write of `channel_metrics`. That matters once you have hundreds of
+# MAGIC > signals from many suppliers.
+# MAGIC
 # MAGIC `channel_tags` stores signal metadata as **entity–attribute–value** rows: `(container_id, channel_id,
 # MAGIC key, value)`. When it is configured, *every* keyword of `channel(...)` becomes a lookup here — so you can
 # MAGIC select by any metadata (`category="PT"`, `physical_quantity="velocity"`, `subsystem=...`) and add new
@@ -410,6 +450,13 @@ display(signal_tags.where("channel_id = 680"))
 
 # MAGIC %md
 # MAGIC ## Step 6 · `container_metrics` + `container_tags` — the recording view
+# MAGIC
+# MAGIC > ✅ **`container_metrics` is required by the `DefaultSolver`**: it is the list of recordings a query runs over.
+# MAGIC >
+# MAGIC > ➕ **`container_tags` is optional.** **How it helps:** it enables `havingTag(...)` filters such as
+# MAGIC > `havingTag(powertrain_type="ev")` or `havingTag(scenario="mountain_drive")`, so a query only touches
+# MAGIC > matching trips *before* any sample is read. Like `channel_tags`, it lets you add trip metadata without
+# MAGIC > schema changes. Without it you can still run over all containers (or filter them in Spark yourself).
 # MAGIC
 # MAGIC One row per trip. Impulse hard-references only a few names: **`container_id`**, and **`start_ts` /
 # MAGIC `stop_ts`** (used by `ContainerEvent` and `TimeWindowEvent` — so keep them in the *same unit as the
@@ -468,6 +515,11 @@ display(container_metrics)
 # MAGIC %md
 # MAGIC ## Step 7 · `poi_channels` — Points-in-Time events
 # MAGIC
+# MAGIC > ➕ **Optional.** Only needed if you call `poi_channel(...)`; leave it out for sample-only data. **How it
+# MAGIC > helps:** discrete events become a first-class series type (**PointsInTimeSeries**) that combines with
+# MAGIC > signals in TSAL. For example, "speed at every `HARSH_BRAKE` alert" or "gear shifts while SOC < 20 %".
+# MAGIC > Faking events as intervals instead would make every alert last until the next one.
+# MAGIC
 # MAGIC Some data is not a signal but a stream of **discrete events** — fault codes, log messages, alerts. A
 # MAGIC value exists *only at its instant*; there is no "value in between". Storing those as intervals would
 # MAGIC be wrong (an alert would appear to last until the next one). Impulse has a dedicated table:
@@ -516,7 +568,39 @@ display(poi_channels.groupBy("container_id", "channel_id", "value_string").count
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Register the POI channels in the catalogue tables so `poi_channel(channel_name=...)` can find them:
+# MAGIC ### Register the events in the catalogue — or no query will ever find them
+# MAGIC
+# MAGIC Writing events to `poi_channels` is only half the job. Remember step 4: Impulse **selects channels in the
+# MAGIC catalogue first** and reads the data tables only afterwards. `poi_channel(...)` works exactly like
+# MAGIC `channel(...)`:
+# MAGIC
+# MAGIC ```
+# MAGIC poi_channel(channel_name="Event.DriverAlert", dtype="string")
+# MAGIC    │ 1. match channel_name in channel_tags (or channel_metrics)  → which (container_id, channel_id)?
+# MAGIC    │ 2. read only those pairs from poi_channels                    → [timestamp, value] points
+# MAGIC    ▼
+# MAGIC PointsInTimeSeries
+# MAGIC ```
+# MAGIC
+# MAGIC So if the event channels are missing from the catalogue, step 1 matches nothing: the events exist in
+# MAGIC `poi_channels`, but no query can reach them, and the alert analyses in step 10, 2a and 2b break. The
+# MAGIC cell below therefore:
+# MAGIC
+# MAGIC 1. **`POI_META`**: declares the two invented channels. The ids start at 10001 so they can never collide
+# MAGIC    with a real signal id from the source dimension.
+# MAGIC 2. **`poi_metrics` → `channel_metrics_all`**: builds one `channel_metrics` row per (trip, event channel),
+# MAGIC    with the same columns as the signal rows so they can be unioned. Where a value means something for
+# MAGIC    events it is real (count, min/max/mean of the numeric value, first/last timestamp). Otherwise it is a
+# MAGIC    constant (`rle_compression_ratio = 1`, because events aren't run-length encoded) or null (std,
+# MAGIC    percentiles, sample rate).
+# MAGIC 3. **`poi_tags` → `channel_tags`**: adds tag rows for the events (`channel_name`, `category="Event"`,
+# MAGIC    `series_type="POI"`, …), so `poi_channel(category="Event")` works too. ⚠️ This **rebuilds**
+# MAGIC    `channel_tags` and replaces the step 5 version. The tags are joined to `channel_metrics_all`, so each
+# MAGIC    channel gets tags only in the trips where it really exists (a trip without gear shifts has no
+# MAGIC    `Event.GearShift` tags).
+# MAGIC
+# MAGIC > The same logic lives in `common/impulse_silver.poi_channel_metrics()`, which the instructor setup and the
+# MAGIC > declarative pipeline use. It is spelled out here so you can see every column.
 
 # COMMAND ----------
 
@@ -550,6 +634,14 @@ channel_tags = (channel_metrics_all.select("container_id", "channel_id").distinc
 
 # MAGIC %md
 # MAGIC ## Step 8 · `channel_mapping` + `unit_conversion` — logical names and units
+# MAGIC
+# MAGIC > ➕ **Both optional.** `channel_mapping` is needed only for `channel_with_alias(...)`; `unit_conversion`
+# MAGIC > only works together with it. **How they help:**
+# MAGIC > * `channel_mapping`: analysts write **one** name (`drive_unit_speed`) that works on every vehicle. The
+# MAGIC >   data team owns the mapping, so a renamed signal or a new logger means a new mapping row, not
+# MAGIC >   changes to every notebook and report. Resolution is per trip, with priority fallback.
+# MAGIC > * `unit_conversion`: the aliased channel arrives **already in the unit the analysis expects** (km/h,
+# MAGIC >   kWh, …), even if trips log different units. That avoids silent unit-mismatch bugs when fleets mix.
 # MAGIC
 # MAGIC Physical signal names differ between vehicles, loggers and software versions. A **channel alias**
 # MAGIC gives analysts one stable name and lets the data team decide what it resolves to:
