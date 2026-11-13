@@ -36,17 +36,17 @@ That's it: the shared data and the shared Impulse library are prepared by your i
                     ▼
             shared.impulse_silver_*   the Impulse silver model                      (instructor; rebuilt by
                     │                                                                participants in workshop 2)
-                    ▼   Impulse (one shared clone: /Workspace/Shared/impulse)
+                    ▼   Impulse (one shared wheel: shared.impulse_libs)
             <USER_SCHEMA>.impulse_w1_* / impulse_w2_*   gold star schemas           (participants)
                     │
                     ▼
             AI/BI dashboards in your home folder
 ```
 
-* **One copy of Impulse.** The instructor clones `databrickslabs/impulse` once into a shared Git folder
-  (`IMPULSE_REPO_PATH`, default `/Workspace/Shared/impulse`) and packages it as a **wheel** in the volume
-  `dbx_workshop_dev.shared.impulse_libs`. Notebooks `%pip install` that wheel (`IMPULSE_INSTALL_MODE =
-  "wheel"`, default) or import straight from the Git folder (`"repo"`). The Genie Code **skills** are
+* **One copy of Impulse.** The instructor's `01b` notebook downloads the `databrickslabs/impulse` release tag
+  from GitHub and packages it as a **wheel** in the volume `dbx_workshop_dev.shared.impulse_libs`. Notebooks
+  `%pip install` that wheel (`IMPULSE_INSTALL_MODE = "wheel"`, default) or import straight from a shared Git
+  folder (`"repo"`, `IMPULSE_REPO_PATH`, default `/Workspace/Shared/impulse`). The Genie Code **skills** are
   published next to the wheel (`impulse_libs/skills/<version>/`) and copied into each user's Genie Code
   skills folder in workshop 1 / notebook 2.
 * **One config file.** Every notebook starts with `%run ../CONFIG`. Participants only set `USER_SCHEMA`.

@@ -26,9 +26,10 @@ USER_SCHEMA = ""
 # =============================================================================================
 # 2. SHARED, INSTRUCTOR-MANAGED LOCATIONS (participants: do not change)
 # =============================================================================================
-# The single, workspace-wide clone of the Impulse library (a Databricks Git folder created by the
-# instructor -- see instructor_setup/00_instructor_guide). It is the source of the wheel, the Genie
-# Code skills, and (in "repo" mode) the code the notebooks import.
+# Impulse source. 01b_build_impulse_wheel downloads the IMPULSE_VERSION tag from IMPULSE_GITHUB_REPO into a
+# temp dir (nothing is written to the workspace). IMPULSE_REPO_PATH is a shared Git folder that is only
+# required in "repo" mode; if it exists, 01b builds from it instead of downloading.
+IMPULSE_GITHUB_REPO = "databrickslabs/impulse"
 IMPULSE_REPO_PATH = "/Workspace/Shared/impulse"
 IMPULSE_VERSION = "v0.11.0"  # the release tag the workshops were tested with
 

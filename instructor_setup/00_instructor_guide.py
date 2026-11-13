@@ -7,7 +7,7 @@
 # MAGIC
 # MAGIC | Step | What | Where | Time |
 # MAGIC |---|---|---|---|
-# MAGIC | 1 | Clone **Impulse** once into a shared Git folder | Workspace UI or CLI | 2 min |
+# MAGIC | 1 | *(repo mode only)* Clone **Impulse** once into a shared Git folder | Workspace UI or CLI | 2 min |
 # MAGIC | 1b | Package Impulse as a **wheel** in the volume `shared.impulse_libs` | `01b_build_impulse_wheel` | 1 min |
 # MAGIC | 2 | (Optional) turn the Impulse **Genie Code skills** on workspace-wide | notebook snippet | 2 min |
 # MAGIC | 3 | Check `CONFIG` (catalog, shared schema, Impulse path) | `../CONFIG` | 2 min |
@@ -24,7 +24,10 @@
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 1 · Clone Impulse **once** into a shared Git folder
+# MAGIC ## Step 1 · Clone Impulse **once** into a shared Git folder *(only for `IMPULSE_INSTALL_MODE = "repo"`)*
+# MAGIC
+# MAGIC > **Default wheel mode: skip this step.** `01b_build_impulse_wheel` downloads the `IMPULSE_VERSION` tag
+# MAGIC > from GitHub into a temp directory and needs nothing in `/Workspace/Shared`.
 # MAGIC
 # MAGIC Every workshop notebook imports Impulse from **one** shared location instead of installing it per
 # MAGIC user: same version for everyone, one place to upgrade, no per-user installs. The location is
@@ -53,8 +56,8 @@
 # MAGIC
 # MAGIC ## Step 1b · Package Impulse as a wheel (default install mode)
 # MAGIC
-# MAGIC Run **`01b_build_impulse_wheel`**. It builds `databricks_impulse-<version>-py3-none-any.whl` from the
-# MAGIC Git folder and stores it (plus a small JSON manifest with version + commit) in the Unity Catalog volume
+# MAGIC Run **`01b_build_impulse_wheel`**. It downloads the `IMPULSE_VERSION` tag from GitHub (or uses the Git
+# MAGIC folder from step 1, if present), builds `databricks_impulse-<version>-py3-none-any.whl` and stores it (plus a small JSON manifest with version + commit) in the Unity Catalog volume
 # MAGIC **`dbx_workshop_dev.shared.impulse_libs`**. Notebooks then run `%pip install $IMPULSE_PIP_TARGET`.
 # MAGIC
 # MAGIC CONFIG supports **both** options via `IMPULSE_INSTALL_MODE`:
@@ -98,7 +101,7 @@
 # MAGIC
 # MAGIC | Setting | Default | Meaning |
 # MAGIC |---|---|---|
-# MAGIC | `IMPULSE_REPO_PATH` | `/Workspace/Shared/impulse` | the Git folder from step 1 |
+# MAGIC | `IMPULSE_REPO_PATH` | `/Workspace/Shared/impulse` | the Git folder from step 1 (repo mode only) |
 # MAGIC | `IMPULSE_INSTALL_MODE` | `wheel` | `wheel` (from `impulse_libs`, step 1b) or `repo` (the Git folder) |
 # MAGIC | `LIBS_VOLUME_NAME` | `impulse_libs` | volume holding the Impulse wheel |
 # MAGIC | `SHARED_CATALOG` / `SHARED_SCHEMA_NAME` | `dbx_workshop_dev` / `shared` | where bronze + silver live |

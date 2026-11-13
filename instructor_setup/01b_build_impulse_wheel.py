@@ -2,14 +2,16 @@
 # MAGIC %md
 # MAGIC # 01b · Package Impulse as a wheel in a Unity Catalog volume
 # MAGIC
-# MAGIC **Instructor only — run once per Impulse version, after cloning Impulse (guide step 1).**
+# MAGIC **Instructor only — run once per Impulse version.**
 # MAGIC
-# MAGIC Builds a standard Python wheel from the shared Git folder (`IMPULSE_REPO_PATH`, pinned to
-# MAGIC `IMPULSE_VERSION`) and stores it — together with the **Genie Code skills** (Markdown, same version) —
-# MAGIC in the volume **`dbx_workshop_dev.shared.impulse_libs`**:
+# MAGIC Downloads the Impulse source for tag `IMPULSE_VERSION` from GitHub (`IMPULSE_GITHUB_REPO`) into a
+# MAGIC temporary directory — **nothing is written to the workspace** — builds a standard Python wheel and stores
+# MAGIC it, together with the **Genie Code skills** (Markdown, same version), in the volume
+# MAGIC **`dbx_workshop_dev.shared.impulse_libs`**. (If a Git folder already exists at `IMPULSE_REPO_PATH`,
+# MAGIC it is used instead of the download.)
 # MAGIC
 # MAGIC ```
-# MAGIC /Workspace/Shared/impulse  (Git folder, tag v0.11.0)
+# MAGIC github.com/databrickslabs/impulse  (tag v0.11.0, downloaded to a temp dir)
 # MAGIC        │  pip wheel
 # MAGIC        ▼
 # MAGIC /Volumes/dbx_workshop_dev/shared/impulse_libs/databricks_impulse-0.11.0-py3-none-any.whl
@@ -21,11 +23,10 @@
 # MAGIC
 # MAGIC **Why a wheel?** It's an immutable, versioned artifact governed by Unity Catalog (`READ VOLUME`), it
 # MAGIC installs like any package (`%pip`, job/cluster libraries, serverless environments), and nobody's
-# MAGIC notebooks change if someone switches the Git folder's branch. The Git folder stays the single source:
-# MAGIC re-run this notebook after pulling a new Impulse tag (and bump `IMPULSE_VERSION` in CONFIG).
+# MAGIC notebooks change mid-workshop. To upgrade, bump `IMPULSE_VERSION` in CONFIG and re-run this notebook.
 # MAGIC
-# MAGIC Prefer the Git-folder approach? Set `IMPULSE_INSTALL_MODE = "repo"` in CONFIG — notebooks then import
-# MAGIC from `IMPULSE_REPO_PATH/src` directly and this wheel isn't needed.
+# MAGIC Prefer the Git-folder approach? Set `IMPULSE_INSTALL_MODE = "repo"` in CONFIG and create the Git folder
+# MAGIC (guide step 1) — notebooks then import from `IMPULSE_REPO_PATH/src` directly and this wheel isn't needed.
 
 # COMMAND ----------
 
@@ -39,14 +40,43 @@ import os
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
+import urllib.request
 from datetime import datetime, timezone
 
-assert os.path.isdir(os.path.join(IMPULSE_REPO_PATH, "src", "impulse_query_engine")), \
-    f"Impulse Git folder not found at {IMPULSE_REPO_PATH} -- see 00_instructor_guide, step 1"
+work = tempfile.mkdtemp()
+commit = None
 
-repo_version = open(os.path.join(IMPULSE_REPO_PATH, "VERSION")).read().strip()
-print(f"Git folder {IMPULSE_REPO_PATH} has Impulse version {repo_version}; CONFIG expects {IMPULSE_VERSION}")
+if os.path.isdir(os.path.join(IMPULSE_REPO_PATH, "src", "impulse_query_engine")):
+    # Optional: an existing Git folder (repo mode) is used as the source.
+    source_dir, source = IMPULSE_REPO_PATH, IMPULSE_REPO_PATH
+    try:
+        from databricks.sdk import WorkspaceClient
+        ws = WorkspaceClient()
+        commit = ws.repos.get(ws.workspace.get_status(IMPULSE_REPO_PATH).object_id).head_commit_id
+    except Exception:
+        pass
+else:
+    # Default: download the tagged source archive from GitHub into the temp dir -- nothing in /Workspace.
+    url = f"https://github.com/{IMPULSE_GITHUB_REPO}/archive/refs/tags/{IMPULSE_VERSION}.tar.gz"
+    archive = os.path.join(work, "impulse.tar.gz")
+    print("downloading", url)
+    urllib.request.urlretrieve(url, archive)
+    with tarfile.open(archive) as tar:
+        tar.extractall(os.path.join(work, "download"), filter="data")
+    (top,) = os.listdir(os.path.join(work, "download"))          # e.g. impulse-0.11.0/
+    source_dir, source = os.path.join(work, "download", top), url
+    try:
+        api = f"https://api.github.com/repos/{IMPULSE_GITHUB_REPO}/commits/{IMPULSE_VERSION}"
+        with urllib.request.urlopen(urllib.request.Request(api, headers={"Accept": "application/vnd.github.sha"})) as r:
+            commit = r.read().decode().strip()
+    except Exception:
+        pass
+
+assert os.path.isdir(os.path.join(source_dir, "src", "impulse_query_engine")), f"no Impulse sources in {source}"
+repo_version = open(os.path.join(source_dir, "VERSION")).read().strip()
+print(f"Impulse source {source} has version {repo_version}; CONFIG expects {IMPULSE_VERSION}")
 assert repo_version == IMPULSE_VERSION.lstrip("v"), (
     "Version mismatch: check out the tag in the Git folder or update IMPULSE_VERSION in CONFIG")
 
@@ -55,11 +85,10 @@ spark.sql(f"CREATE VOLUME IF NOT EXISTS {SHARED_SCHEMA}.{LIBS_VOLUME_NAME} "
 
 # COMMAND ----------
 
-# DBTITLE 1,Build the wheel (from a local copy of the Git folder)
-work = tempfile.mkdtemp()
+# DBTITLE 1,Build the wheel (from a local copy of the source)
 src = os.path.join(work, "impulse")
 # Only what the build needs: package sources + metadata files referenced by pyproject.toml.
-shutil.copytree(IMPULSE_REPO_PATH, src,
+shutil.copytree(source_dir, src,
                 ignore=shutil.ignore_patterns(".git", "apps", "demos", "docs", "tests", "skills", "*.ipynb"))
 out = os.path.join(work, "dist")
 build = subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps", "--quiet", "-w", out, src],
@@ -89,26 +118,20 @@ shutil.copy(wheel, IMPULSE_WHEEL_PATH)
 skills_target = f"{LIBS_VOLUME_PATH}/skills/{IMPULSE_VERSION}"
 if os.path.isdir(skills_target):
     shutil.rmtree(skills_target)
-shutil.copytree(os.path.join(IMPULSE_REPO_PATH, "skills"), skills_target,
+shutil.copytree(os.path.join(source_dir, "skills"), skills_target,
                 ignore=shutil.ignore_patterns(".claude-plugin"))
 skills = sorted(d for d in os.listdir(skills_target) if os.path.isfile(os.path.join(skills_target, d, "SKILL.md")))
 print(f"published {len(skills)} skills to {skills_target}: {skills}")
 
 # A small manifest next to the wheel: what was built, from which commit, when.
-try:
-    from databricks.sdk import WorkspaceClient
-    ws = WorkspaceClient()
-    repo_id = ws.workspace.get_status(IMPULSE_REPO_PATH).object_id      # a Git folder is a "repo" object
-    commit = ws.repos.get(repo_id).head_commit_id
-except Exception:
-    commit = None
 manifest = {"package": "databricks-impulse", "version": repo_version, "wheel": IMPULSE_WHEEL_PATH,
             "skills": skills_target, "skill_names": skills,
-            "source": IMPULSE_REPO_PATH, "git_commit": commit, "built_at": datetime.now(timezone.utc).isoformat()}
+            "source": source, "git_commit": commit, "built_at": datetime.now(timezone.utc).isoformat()}
 with open(os.path.join(LIBS_VOLUME_PATH, f"databricks_impulse-{repo_version}.json"), "w") as f:
     json.dump(manifest, f, indent=2)
 print(json.dumps(manifest, indent=2))
 display(dbutils.fs.ls(LIBS_VOLUME_PATH))
+shutil.rmtree(work, ignore_errors=True)
 
 # COMMAND ----------
 
