@@ -516,6 +516,9 @@ alerts = db.query.poi_channel(channel_name="Event.DriverAlert", dtype="string")
 shifts = db.query.poi_channel(channel_name="Event.GearShift")
 
 harsh_brake = alerts == "HARSH_BRAKE"                          # PointsInTime
+# Native TSAL: PointsInTime.expand(w) -> Intervals [t - w, t + w] around each instant. `w` is in the channel
+# time unit (our silver uses epoch µs, so 5e6 = 5 s). Overlapping windows are merged: two alerts < 10 s apart
+# become ONE window, so count alerts (harsh_brake), not windows, when you want the number of events.
 around_harsh_brake = harsh_brake.expand(5e6)                   # Intervals: ±5 s around each alert
 speed_around = speed_kmh.where(around_harsh_brake)             # SampleSeries inside those windows
 shifts_to_top = shifts > 5                                     # numeric POI comparison -> PointsInTime
