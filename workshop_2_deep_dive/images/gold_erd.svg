@@ -1,0 +1,231 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1880" height="1040" viewBox="0 0 1880 1040" font-family="Helvetica, Arial, sans-serif">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="30" y="40" font-size="24" font-weight="bold" fill="#111827">Workshop 2 gold layer: tables, keys and the section 7 queries</text>
+<text x="30" y="66" font-size="14" fill="#4b5563">All tables are &lt;your schema&gt;.impulse_w2_&lt;name&gt;. Facts (orange header) join their dimension on visual_id / event_id / channel_id, and every fact joins measurement_dimension on container_id.</text>
+<path d="M 400 183 L 360 183 L 360 161 L 320 161" fill="none" stroke="#9ca3af" stroke-width="1.8" />
+<circle cx="400" cy="183" r="4" fill="#9ca3af"/><circle cx="320" cy="161" r="4" fill="#9ca3af"/>
+<text x="360" y="154" font-size="11" text-anchor="middle" fill="#6b7280" font-family="Menlo, monospace">visual_id</text>
+<path d="M 400 653 L 360 653 L 360 631 L 320 631" fill="none" stroke="#9ca3af" stroke-width="1.8" />
+<circle cx="400" cy="653" r="4" fill="#9ca3af"/><circle cx="320" cy="631" r="4" fill="#9ca3af"/>
+<text x="360" y="624" font-size="11" text-anchor="middle" fill="#6b7280" font-family="Menlo, monospace">visual_id</text>
+<path d="M 1480 183 L 1520 183 L 1520 161 L 1560 161" fill="none" stroke="#9ca3af" stroke-width="1.8" />
+<circle cx="1480" cy="183" r="4" fill="#9ca3af"/><circle cx="1560" cy="161" r="4" fill="#9ca3af"/>
+<text x="1520" y="154" font-size="11" text-anchor="middle" fill="#6b7280" font-family="Menlo, monospace">event_id</text>
+<path d="M 1480 653 L 1520 653 L 1520 631 L 1560 631" fill="none" stroke="#9ca3af" stroke-width="1.8" />
+<circle cx="1480" cy="653" r="4" fill="#9ca3af"/><circle cx="1560" cy="631" r="4" fill="#9ca3af"/>
+<text x="1520" y="624" font-size="11" text-anchor="middle" fill="#6b7280" font-family="Menlo, monospace">channel_id</text>
+<path d="M 700 161 L 745 161 L 745 391 L 790 391" fill="none" stroke="#9ca3af" stroke-width="1.8" />
+<circle cx="700" cy="161" r="4" fill="#9ca3af"/><circle cx="790" cy="391" r="4" fill="#9ca3af"/>
+<path d="M 700 631 L 745 631 L 745 391 L 790 391" fill="none" stroke="#9ca3af" stroke-width="1.8" />
+<circle cx="700" cy="631" r="4" fill="#9ca3af"/><circle cx="790" cy="391" r="4" fill="#9ca3af"/>
+<path d="M 1180 161 L 1135 161 L 1135 391 L 1090 391" fill="none" stroke="#9ca3af" stroke-width="1.8" />
+<circle cx="1180" cy="161" r="4" fill="#9ca3af"/><circle cx="1090" cy="391" r="4" fill="#9ca3af"/>
+<path d="M 1180 631 L 1135 631 L 1135 391 L 1090 391" fill="none" stroke="#9ca3af" stroke-width="1.8" />
+<circle cx="1180" cy="631" r="4" fill="#9ca3af"/><circle cx="1090" cy="391" r="4" fill="#9ca3af"/>
+<path d="M 700 227 L 722 227 L 722 100 L 1162 100 L 1162 205 L 1180 205" fill="none" stroke="#c2410c" stroke-width="2.2" />
+<circle cx="700" cy="227" r="4" fill="#c2410c"/><circle cx="1180" cy="205" r="4" fill="#c2410c"/>
+<rect x="767" y="90" width="350" height="20" rx="4" fill="#ffffff" stroke="#c2410c"/>
+<text x="942" y="104" font-size="12" text-anchor="middle" fill="#c2410c" font-family="Menlo, monospace">Q3 · container_id, event_id, event_instance_id</text>
+<rect x="20" y="120" width="300" height="174" rx="8" fill="#ffffff" stroke="#1f2937" stroke-width="2"/>
+<path d="M 20 128 a 8 8 0 0 1 8 -8 h 284 a 8 8 0 0 1 8 8 v 22 h -300 z" fill="#1f2937"/>
+<text x="32" y="140" font-size="15" font-weight="bold" fill="#ffffff">stats_aggregator_dimension</text>
+<text x="310" y="140" font-size="11" fill="#ffffff" text-anchor="end">DIM</text>
+<text x="30" y="165" font-size="11" font-weight="bold" fill="#b45309">PK</text>
+<text x="58" y="165" font-size="13" fill="#111827" font-family="Menlo, monospace">visual_id</text>
+<rect x="22" y="172" width="296" height="22" fill="#f9fafb"/>
+<text x="58" y="187" font-size="13" fill="#111827" font-family="Menlo, monospace">name</text>
+<text x="310" y="187" font-size="11" fill="#6b7280" text-anchor="end" font-style="italic">'regen_stats', …</text>
+<text x="58" y="209" font-size="13" fill="#111827" font-family="Menlo, monospace">agg_type</text>
+<rect x="22" y="216" width="296" height="22" fill="#f9fafb"/>
+<text x="58" y="231" font-size="13" fill="#111827" font-family="Menlo, monospace">statistics</text>
+<text x="58" y="253" font-size="13" fill="#111827" font-family="Menlo, monospace">signal_expressions</text>
+<rect x="30" y="268" width="34" height="20" rx="10" fill="#1b7f5b"/>
+<text x="47" y="282" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q1</text>
+<rect x="70" y="268" width="34" height="20" rx="10" fill="#2a6fdb"/>
+<text x="87" y="282" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q2</text>
+<rect x="110" y="268" width="34" height="20" rx="10" fill="#c2410c"/>
+<text x="127" y="282" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q3</text>
+<rect x="150" y="268" width="34" height="20" rx="10" fill="#8b3fd1"/>
+<text x="167" y="282" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q4</text>
+<rect x="400" y="120" width="300" height="218" rx="8" fill="#ffffff" stroke="#f97316" stroke-width="2"/>
+<path d="M 400 128 a 8 8 0 0 1 8 -8 h 284 a 8 8 0 0 1 8 8 v 22 h -300 z" fill="#f97316"/>
+<text x="412" y="140" font-size="15" font-weight="bold" fill="#ffffff">stats_aggregator_fact</text>
+<text x="690" y="140" font-size="11" fill="#ffffff" text-anchor="end">FACT</text>
+<text x="410" y="165" font-size="11" font-weight="bold" fill="#6b7280">FK</text>
+<text x="438" y="165" font-size="13" fill="#111827" font-family="Menlo, monospace">container_id</text>
+<rect x="402" y="172" width="296" height="22" fill="#f9fafb"/>
+<text x="410" y="187" font-size="11" font-weight="bold" fill="#6b7280">FK</text>
+<text x="438" y="187" font-size="13" fill="#111827" font-family="Menlo, monospace">visual_id</text>
+<text x="410" y="209" font-size="11" font-weight="bold" fill="#6b7280">FK</text>
+<text x="438" y="209" font-size="13" fill="#111827" font-family="Menlo, monospace">event_id</text>
+<rect x="402" y="216" width="296" height="22" fill="#f9fafb"/>
+<text x="410" y="231" font-size="11" font-weight="bold" fill="#6b7280">FK</text>
+<text x="438" y="231" font-size="13" fill="#111827" font-family="Menlo, monospace">event_instance_id</text>
+<text x="438" y="253" font-size="13" fill="#111827" font-family="Menlo, monospace">channel_name</text>
+<rect x="402" y="260" width="296" height="22" fill="#f9fafb"/>
+<text x="438" y="275" font-size="13" fill="#111827" font-family="Menlo, monospace">aggregation_label</text>
+<text x="690" y="275" font-size="11" fill="#6b7280" text-anchor="end" font-style="italic">'energy_kwh', …</text>
+<text x="438" y="297" font-size="13" fill="#111827" font-family="Menlo, monospace">statistic_value</text>
+<rect x="410" y="312" width="34" height="20" rx="10" fill="#1b7f5b"/>
+<text x="427" y="326" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q1</text>
+<rect x="450" y="312" width="34" height="20" rx="10" fill="#2a6fdb"/>
+<text x="467" y="326" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q2</text>
+<rect x="490" y="312" width="34" height="20" rx="10" fill="#c2410c"/>
+<text x="507" y="326" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q3</text>
+<rect x="530" y="312" width="34" height="20" rx="10" fill="#8b3fd1"/>
+<text x="547" y="326" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q4</text>
+<rect x="790" y="350" width="300" height="240" rx="8" fill="#ffffff" stroke="#1f2937" stroke-width="2"/>
+<path d="M 790 358 a 8 8 0 0 1 8 -8 h 284 a 8 8 0 0 1 8 8 v 22 h -300 z" fill="#1f2937"/>
+<text x="802" y="370" font-size="15" font-weight="bold" fill="#ffffff">measurement_dimension</text>
+<text x="1080" y="370" font-size="11" fill="#ffffff" text-anchor="end">DIM</text>
+<text x="800" y="395" font-size="11" font-weight="bold" fill="#b45309">PK</text>
+<text x="828" y="395" font-size="13" fill="#111827" font-family="Menlo, monospace">container_id</text>
+<rect x="792" y="402" width="296" height="22" fill="#f9fafb"/>
+<text x="828" y="417" font-size="13" fill="#111827" font-family="Menlo, monospace">start_ts / stop_ts</text>
+<text x="828" y="439" font-size="13" fill="#111827" font-family="Menlo, monospace">trip_start_dt, duration_s</text>
+<rect x="792" y="446" width="296" height="22" fill="#f9fafb"/>
+<text x="828" y="461" font-size="13" fill="#111827" font-family="Menlo, monospace">vehicle_key, manufacturer</text>
+<text x="828" y="483" font-size="13" fill="#111827" font-family="Menlo, monospace">powertrain_type, scenario</text>
+<rect x="792" y="490" width="296" height="22" fill="#f9fafb"/>
+<text x="828" y="505" font-size="13" fill="#111827" font-family="Menlo, monospace">driver, tires, traffic, …</text>
+<text x="828" y="527" font-size="13" fill="#111827" font-family="Menlo, monospace">config_hash</text>
+<rect x="792" y="534" width="296" height="22" fill="#f9fafb"/>
+<text x="828" y="549" font-size="13" fill="#111827" font-family="Menlo, monospace">_created_at</text>
+<text x="1080" y="549" font-size="11" fill="#6b7280" text-anchor="end" font-style="italic">incremental state</text>
+<rect x="800" y="564" width="34" height="20" rx="10" fill="#1b7f5b"/>
+<text x="817" y="578" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q1</text>
+<rect x="840" y="564" width="34" height="20" rx="10" fill="#2a6fdb"/>
+<text x="857" y="578" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q2</text>
+<rect x="880" y="564" width="34" height="20" rx="10" fill="#c2410c"/>
+<text x="897" y="578" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q3</text>
+<rect x="920" y="564" width="34" height="20" rx="10" fill="#8b3fd1"/>
+<text x="937" y="578" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q4</text>
+<rect x="960" y="564" width="34" height="20" rx="10" fill="#0e7490"/>
+<text x="977" y="578" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q6</text>
+<rect x="1180" y="120" width="300" height="174" rx="8" fill="#ffffff" stroke="#f97316" stroke-width="2"/>
+<path d="M 1180 128 a 8 8 0 0 1 8 -8 h 284 a 8 8 0 0 1 8 8 v 22 h -300 z" fill="#f97316"/>
+<text x="1192" y="140" font-size="15" font-weight="bold" fill="#ffffff">event_instance_fact</text>
+<text x="1470" y="140" font-size="11" fill="#ffffff" text-anchor="end">FACT</text>
+<text x="1190" y="165" font-size="11" font-weight="bold" fill="#6b7280">FK</text>
+<text x="1218" y="165" font-size="13" fill="#111827" font-family="Menlo, monospace">container_id</text>
+<rect x="1182" y="172" width="296" height="22" fill="#f9fafb"/>
+<text x="1190" y="187" font-size="11" font-weight="bold" fill="#6b7280">FK</text>
+<text x="1218" y="187" font-size="13" fill="#111827" font-family="Menlo, monospace">event_id</text>
+<text x="1218" y="209" font-size="13" fill="#111827" font-family="Menlo, monospace">event_instance_id</text>
+<rect x="1182" y="216" width="296" height="22" fill="#f9fafb"/>
+<text x="1218" y="231" font-size="13" fill="#111827" font-family="Menlo, monospace">start_ts</text>
+<text x="1218" y="253" font-size="13" fill="#111827" font-family="Menlo, monospace">end_ts</text>
+<rect x="1190" y="268" width="34" height="20" rx="10" fill="#c2410c"/>
+<text x="1207" y="282" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q3</text>
+<rect x="1230" y="268" width="34" height="20" rx="10" fill="#b8860b"/>
+<text x="1247" y="282" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q5</text>
+<rect x="1560" y="120" width="300" height="174" rx="8" fill="#ffffff" stroke="#1f2937" stroke-width="2"/>
+<path d="M 1560 128 a 8 8 0 0 1 8 -8 h 284 a 8 8 0 0 1 8 8 v 22 h -300 z" fill="#1f2937"/>
+<text x="1572" y="140" font-size="15" font-weight="bold" fill="#ffffff">event_dimension</text>
+<text x="1850" y="140" font-size="11" fill="#ffffff" text-anchor="end">DIM</text>
+<text x="1570" y="165" font-size="11" font-weight="bold" fill="#b45309">PK</text>
+<text x="1598" y="165" font-size="13" fill="#111827" font-family="Menlo, monospace">event_id</text>
+<rect x="1562" y="172" width="296" height="22" fill="#f9fafb"/>
+<text x="1598" y="187" font-size="13" fill="#111827" font-family="Menlo, monospace">event_name</text>
+<text x="1598" y="209" font-size="13" fill="#111827" font-family="Menlo, monospace">event_type</text>
+<rect x="1562" y="216" width="296" height="22" fill="#f9fafb"/>
+<text x="1598" y="231" font-size="13" fill="#111827" font-family="Menlo, monospace">event_expression</text>
+<text x="1598" y="253" font-size="13" fill="#111827" font-family="Menlo, monospace">required_channels</text>
+<rect x="1570" y="268" width="34" height="20" rx="10" fill="#b8860b"/>
+<text x="1587" y="282" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q5</text>
+<rect x="20" y="590" width="300" height="174" rx="8" fill="#ffffff" stroke="#1f2937" stroke-width="2"/>
+<path d="M 20 598 a 8 8 0 0 1 8 -8 h 284 a 8 8 0 0 1 8 8 v 22 h -300 z" fill="#1f2937"/>
+<text x="32" y="610" font-size="15" font-weight="bold" fill="#ffffff">histogram_dimension</text>
+<text x="310" y="610" font-size="11" fill="#ffffff" text-anchor="end">DIM</text>
+<text x="30" y="635" font-size="11" font-weight="bold" fill="#b45309">PK</text>
+<text x="58" y="635" font-size="13" fill="#111827" font-family="Menlo, monospace">visual_id</text>
+<rect x="22" y="642" width="296" height="22" fill="#f9fafb"/>
+<text x="58" y="657" font-size="13" fill="#111827" font-family="Menlo, monospace">name</text>
+<text x="310" y="657" font-size="11" fill="#6b7280" text-anchor="end" font-style="italic">'speed_distance', …</text>
+<text x="58" y="679" font-size="13" fill="#111827" font-family="Menlo, monospace">agg_type</text>
+<text x="310" y="679" font-size="11" fill="#6b7280" text-anchor="end" font-style="italic">duration / distance</text>
+<rect x="22" y="686" width="296" height="22" fill="#f9fafb"/>
+<text x="58" y="701" font-size="13" fill="#111827" font-family="Menlo, monospace">bins, bins_unit</text>
+<text x="58" y="723" font-size="13" fill="#111827" font-family="Menlo, monospace">signal_expression</text>
+<rect x="30" y="738" width="34" height="20" rx="10" fill="#2a6fdb"/>
+<text x="47" y="752" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q2</text>
+<rect x="400" y="590" width="300" height="196" rx="8" fill="#ffffff" stroke="#f97316" stroke-width="2"/>
+<path d="M 400 598 a 8 8 0 0 1 8 -8 h 284 a 8 8 0 0 1 8 8 v 22 h -300 z" fill="#f97316"/>
+<text x="412" y="610" font-size="15" font-weight="bold" fill="#ffffff">histogram_fact</text>
+<text x="690" y="610" font-size="11" fill="#ffffff" text-anchor="end">FACT</text>
+<text x="410" y="635" font-size="11" font-weight="bold" fill="#6b7280">FK</text>
+<text x="438" y="635" font-size="13" fill="#111827" font-family="Menlo, monospace">container_id</text>
+<rect x="402" y="642" width="296" height="22" fill="#f9fafb"/>
+<text x="410" y="657" font-size="11" font-weight="bold" fill="#6b7280">FK</text>
+<text x="438" y="657" font-size="13" fill="#111827" font-family="Menlo, monospace">visual_id</text>
+<text x="410" y="679" font-size="11" font-weight="bold" fill="#6b7280">FK</text>
+<text x="438" y="679" font-size="13" fill="#111827" font-family="Menlo, monospace">event_id</text>
+<rect x="402" y="686" width="296" height="22" fill="#f9fafb"/>
+<text x="438" y="701" font-size="13" fill="#111827" font-family="Menlo, monospace">bin_id, bin_name</text>
+<text x="438" y="723" font-size="13" fill="#111827" font-family="Menlo, monospace">lower_bound / upper_bound</text>
+<rect x="402" y="730" width="296" height="22" fill="#f9fafb"/>
+<text x="438" y="745" font-size="13" fill="#111827" font-family="Menlo, monospace">hist_value</text>
+<text x="690" y="745" font-size="11" fill="#6b7280" text-anchor="end" font-style="italic">s or km</text>
+<rect x="410" y="760" width="34" height="20" rx="10" fill="#2a6fdb"/>
+<text x="427" y="774" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q2</text>
+<rect x="1180" y="590" width="300" height="152" rx="8" fill="#ffffff" stroke="#f97316" stroke-width="2"/>
+<path d="M 1180 598 a 8 8 0 0 1 8 -8 h 284 a 8 8 0 0 1 8 8 v 22 h -300 z" fill="#f97316"/>
+<text x="1192" y="610" font-size="15" font-weight="bold" fill="#ffffff">calculated_channel_fact</text>
+<text x="1470" y="610" font-size="11" fill="#ffffff" text-anchor="end">FACT</text>
+<text x="1190" y="635" font-size="11" font-weight="bold" fill="#6b7280">FK</text>
+<text x="1218" y="635" font-size="13" fill="#111827" font-family="Menlo, monospace">container_id</text>
+<rect x="1182" y="642" width="296" height="22" fill="#f9fafb"/>
+<text x="1190" y="657" font-size="11" font-weight="bold" fill="#6b7280">FK</text>
+<text x="1218" y="657" font-size="13" fill="#111827" font-family="Menlo, monospace">channel_id</text>
+<text x="1218" y="679" font-size="13" fill="#111827" font-family="Menlo, monospace">tstart / tend</text>
+<rect x="1182" y="686" width="296" height="22" fill="#f9fafb"/>
+<text x="1218" y="701" font-size="13" fill="#111827" font-family="Menlo, monospace">value</text>
+<rect x="1190" y="716" width="34" height="20" rx="10" fill="#0e7490"/>
+<text x="1207" y="730" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q6</text>
+<rect x="1560" y="590" width="300" height="130" rx="8" fill="#ffffff" stroke="#1f2937" stroke-width="2"/>
+<path d="M 1560 598 a 8 8 0 0 1 8 -8 h 284 a 8 8 0 0 1 8 8 v 22 h -300 z" fill="#1f2937"/>
+<text x="1572" y="610" font-size="15" font-weight="bold" fill="#ffffff">calculated_channel_dimension</text>
+<text x="1850" y="610" font-size="11" fill="#ffffff" text-anchor="end">DIM</text>
+<text x="1570" y="635" font-size="11" font-weight="bold" fill="#b45309">PK</text>
+<text x="1598" y="635" font-size="13" fill="#111827" font-family="Menlo, monospace">channel_id</text>
+<rect x="1562" y="642" width="296" height="22" fill="#f9fafb"/>
+<text x="1598" y="657" font-size="13" fill="#111827" font-family="Menlo, monospace">channel_description</text>
+<text x="1598" y="679" font-size="13" fill="#111827" font-family="Menlo, monospace">channel_expression</text>
+<text x="1570" y="708" font-size="11" fill="#6b7280" font-style="italic">not queried in section 7</text>
+<rect x="704" y="461.0" width="82" height="20" rx="4" fill="#ffffff" stroke="#9ca3af"/>
+<text x="745" y="475.0" font-size="11" text-anchor="middle" fill="#374151" font-family="Menlo, monospace">container_id</text>
+<rect x="1094" y="461.0" width="82" height="20" rx="4" fill="#ffffff" stroke="#9ca3af"/>
+<text x="1135" y="475.0" font-size="11" text-anchor="middle" fill="#374151" font-family="Menlo, monospace">container_id</text>
+<text x="30" y="818" font-size="14" font-weight="bold" fill="#374151">Also in gold (not used by Q1–Q6)</text>
+<rect x="30" y="830" width="590" height="62" rx="8" fill="#f3f4f6" stroke="#d1d5db" stroke-dasharray="5 4"/>
+<text x="44" y="854" font-size="14" font-weight="bold" fill="#374151">histogram2d_dimension / _fact</text>
+<text x="44" y="876" font-size="12" fill="#6b7280" font-family="Menlo, monospace">visual_id · x_bin_id · y_bin_id</text>
+<text x="606" y="876" font-size="12" fill="#6b7280" text-anchor="end" font-style="italic">dashboard (section 8)</text>
+<rect x="640" y="830" width="590" height="62" rx="8" fill="#f3f4f6" stroke="#d1d5db" stroke-dasharray="5 4"/>
+<text x="654" y="854" font-size="14" font-weight="bold" fill="#374151">calculated_channel_metrics</text>
+<text x="654" y="876" font-size="12" fill="#6b7280" font-family="Menlo, monospace">container_id · channel_id</text>
+<text x="1216" y="876" font-size="12" fill="#6b7280" text-anchor="end" font-style="italic">silver-shaped channel catalogue</text>
+<rect x="1250" y="830" width="590" height="62" rx="8" fill="#f3f4f6" stroke="#d1d5db" stroke-dasharray="5 4"/>
+<text x="1264" y="854" font-size="14" font-weight="bold" fill="#374151">channel_mapping_resolution_dimension</text>
+<text x="1264" y="876" font-size="12" fill="#6b7280" font-family="Menlo, monospace">container_id · channel_id · channel_alias</text>
+<text x="1826" y="876" font-size="12" fill="#6b7280" text-anchor="end" font-style="italic">which physical channel each alias used</text>
+<text x="30" y="930" font-size="14" font-weight="bold" fill="#374151">Queries (section 7)</text>
+<rect x="30" y="946" width="34" height="20" rx="10" fill="#1b7f5b"/>
+<text x="47" y="960" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q1</text>
+<text x="74" y="961" font-size="13" fill="#111827">regen energy per vehicle</text>
+<rect x="640" y="946" width="34" height="20" rx="10" fill="#2a6fdb"/>
+<text x="657" y="960" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q2</text>
+<text x="684" y="961" font-size="13" fill="#111827">kWh / 100 km (stats + distance histogram)</text>
+<rect x="1250" y="946" width="34" height="20" rx="10" fill="#c2410c"/>
+<text x="1267" y="960" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q3</text>
+<text x="1294" y="961" font-size="13" fill="#111827">charging SOC rate per session</text>
+<rect x="30" y="976" width="34" height="20" rx="10" fill="#8b3fd1"/>
+<text x="47" y="990" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q4</text>
+<text x="74" y="991" font-size="13" fill="#111827">speed at HARSH_BRAKE alerts</text>
+<rect x="640" y="976" width="34" height="20" rx="10" fill="#b8860b"/>
+<text x="657" y="990" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q5</text>
+<text x="684" y="991" font-size="13" fill="#111827">event inventory</text>
+<rect x="1250" y="976" width="34" height="20" rx="10" fill="#0e7490"/>
+<text x="1267" y="990" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q6</text>
+<text x="1294" y="991" font-size="13" fill="#111827">calculated channel: peak battery power</text>
+</svg>

@@ -80,6 +80,57 @@ q = report.get_db().query
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ### Where the incremental state lives
+# MAGIC
+# MAGIC Incremental mode needs no extra state table. Impulse compares **two timestamp columns** per trip:
+# MAGIC
+# MAGIC ```
+# MAGIC SILVER  container_metrics.last_modified        "when did this trip's data last change?"
+# MAGIC         (stamped by the silver build: F.current_timestamp() in common/impulse_silver.py and in
+# MAGIC          workshop 2 / notebook 1, step 6)
+# MAGIC                     │  compared per container_id
+# MAGIC                     ▼
+# MAGIC GOLD    <prefix>_measurement_dimension._created_at   "when did the report last process this trip?"
+# MAGIC         (written by Report.run())
+# MAGIC ```
+# MAGIC
+# MAGIC On each run a trip is processed if it is **new** (in silver, not yet in gold) or **updated**
+# MAGIC (`silver.last_modified > gold._created_at`). Every other trip is skipped. The column names are the
+# MAGIC `silver_last_modified_column` and `gold_last_modified_column` settings of the `incremental` block. We
+# MAGIC set the silver one to `last_modified`; the gold one keeps its default `_created_at`.
+# MAGIC
+# MAGIC The cell below shows both sides for your report. Before the first run the gold table doesn't exist yet, so
+# MAGIC every trip is "new" and the run is full.
+# MAGIC
+# MAGIC ⚠️ The silver build stamps **every** trip with the build time. Rebuilding silver from scratch therefore marks
+# MAGIC **all** trips as updated, and the next report run reprocesses everything. A production ingestion would
+# MAGIC only touch `last_modified` for trips whose data really changed.
+
+# COMMAND ----------
+
+def incremental_state():
+    """What the next incremental run will do with each trip: silver last_modified vs gold _created_at."""
+    gold_md = f"{GOLD}_measurement_dimension"
+    silver_ts = spark.table(SILVER["container_metrics"]).select(
+        "container_id", F.col("last_modified").alias("silver_last_modified"))
+    if not spark.catalog.tableExists(gold_md):
+        print(f"{gold_md} does not exist yet -> first run is full ({silver_ts.count()} trips)")
+        return
+    gold_ts = spark.table(gold_md).select("container_id", F.col("_created_at").alias("gold_created_at"))
+    state = (silver_ts.join(gold_ts, "container_id", "left")
+             .withColumn("next_run", F.when(F.col("gold_created_at").isNull(), "new")
+                                     .when(F.col("silver_last_modified") > F.col("gold_created_at"), "updated")
+                                     .otherwise("skip")))
+    display(state.groupBy("next_run").agg(F.count("*").alias("trips"),
+                                          F.max("silver_last_modified").alias("latest_silver_change"),
+                                          F.max("gold_created_at").alias("latest_gold_write")))
+
+
+incremental_state()
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## 2 · Signals — aliases do the unit work, the definitions handle the data quirks
 # MAGIC
 # MAGIC Same rules as before (`DATA_NOTES.md`): speed spikes > 100 m/s dropped, SOC (state of charge, % battery full) ≤ 0 ignored, battery
@@ -290,15 +341,47 @@ t = time.time()
 report.run()          # incremental: definitions unchanged, no new trips -> fast no-op
 print(f"✅ incremental re-run: {(time.time() - t) / 60:.1f} min")
 display(spark.sql(f"SHOW TABLES IN {USER_SCHEMA} LIKE '{W2_GOLD_PREFIX}_*'"))
+incremental_state()   # now every trip is 'skip': gold _created_at is newer than silver last_modified
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## 7 · SQL on the gold layer
 # MAGIC
-# MAGIC Facts join to `measurement_dimension` on `container_id`, to `event_dimension` on `event_id` and to their
-# MAGIC own dimension on `visual_id`; `stats_aggregator_fact` also joins `event_instance_fact` on
-# MAGIC `event_instance_id`. Some questions the fleet team would ask:
+# MAGIC `report.run()` wrote a small **star schema** into your schema (`impulse_w2_*`). Every analysis in the report
+# MAGIC lands in a **fact** table with one row per (trip, visual, event, …). Each fact has a **dimension** describing
+# MAGIC *what* was computed (the visual's name, bins, TSAL expression), and all facts share
+# MAGIC **`measurement_dimension`**, one row per trip with the `measurement_dimensions` columns from the config.
+# MAGIC
+# MAGIC ![Workshop 2 gold-layer ERD](./images/gold_erd.png)
+# MAGIC
+# MAGIC **Three join rules cover every query:**
+# MAGIC
+# MAGIC 1. **Fact → its own dimension** on `visual_id` (`stats_aggregator_*`, `histogram_*`, `histogram2d_*`), `event_id`
+# MAGIC    (`event_instance_fact` → `event_dimension`) or `channel_id` (`calculated_channel_*`). Filter on the
+# MAGIC    dimension's **`name`**: it is the `name=` you gave the aggregation in section 5 (or the event in section 3),
+# MAGIC    e.g. `d.name = 'regen_stats'`.
+# MAGIC 2. **Fact → `measurement_dimension`** on `container_id`, to group or filter by vehicle, driver, scenario, …
+# MAGIC 3. **Stats → the event instance** on `(container_id, event_id, event_instance_id)`, when you need the start
+# MAGIC    and end of the window the statistic was computed in.
+# MAGIC
+# MAGIC (Every fact also carries `event_id`, the event the visual was evaluated in; join `event_dimension` to see its name.)
+# MAGIC
+# MAGIC **How the queries below use it:**
+# MAGIC
+# MAGIC | Query | Tables | Joins | Filters on |
+# MAGIC |---|---|---|---|
+# MAGIC | **Q1** regen energy per vehicle | `stats_aggregator_fact` + `_dimension`, `measurement_dimension` | rules 1, 2 | `d.name = 'regen_stats'`, `aggregation_label = 'energy_kwh'` |
+# MAGIC | **Q2** kWh / 100 km | Q1's tables **+** `histogram_fact` + `_dimension` | rules 1, 2 (two facts joined per trip) | `'drive_energy'` energy ÷ `'speed_distance'` km |
+# MAGIC | **Q3** charging SOC rate | `stats_aggregator_*`, **`event_instance_fact`**, `measurement_dimension` | rules 1, 2, **3** (session start/end) | `d.name = 'charging_stats'`; pivots `aggregation_label` start / end / rate |
+# MAGIC | **Q4** speed at HARSH_BRAKE | `stats_aggregator_*`, `measurement_dimension` | rules 1, 2 | `d.name = 'at_harsh_brake_alert'` (one row per alert) |
+# MAGIC | **Q5** event inventory | `event_instance_fact`, `event_dimension` | rule 1 (`event_id`) | none: every event type |
+# MAGIC | **Q6** peak battery power | `calculated_channel_fact`, `measurement_dimension` | rule 2 | none: the fact *is* a time series (`tstart`, `tend`, `value`) |
+# MAGIC
+# MAGIC The tables in the grey strip of the picture (`histogram2d_*`, `calculated_channel_metrics`,
+# MAGIC `channel_mapping_resolution_dimension`) aren't used here. The 2-D histograms feed the dashboard in section 8.
+# MAGIC
+# MAGIC Some questions the fleet team would ask:
 
 # COMMAND ----------
 
